@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>International Soccer Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+        }
+        .view {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .view.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        #custom-team-list, #match-timeline, #full-goalscorer-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        /* Custom scrollbar styles */
+        #custom-team-list::-webkit-scrollbar,
+        #match-timeline::-webkit-scrollbar,
+        #full-goalscorer-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        #custom-team-list::-webkit-scrollbar-track,
+        #match-timeline::-webkit-scrollbar-track,
+        #full-goalscorer-list::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        #custom-team-list::-webkit-scrollbar-thumb,
+        #match-timeline::-webkit-scrollbar-thumb,
+        #full-goalscorer-list::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        #custom-team-list::-webkit-scrollbar-thumb:hover,
+        #match-timeline::-webkit-scrollbar-thumb:hover,
+        #full-goalscorer-list::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        .match-item {
+            height: 4.5rem; /* 72px */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+        }
+    </style>
+</head>
+<body class="text-white flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-green-400">International Soccer Simulator</h1>
+            <p id="subtitle" class="text-gray-400 mt-2">Select a game mode to begin.</p>
+        </header>
+
+        <main>
+            <!-- Mode Selection View -->
+            <div id="mode-select-view" class="view active">
+                <div class="flex flex-col sm:flex-row justify-center items-center flex-wrap gap-6">
+                    <button id="show-single-match-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-10 rounded-lg transition-transform transform hover:scale-105 shadow-lg text-xl">
+                        Single Match
+                    </button>
+                    <button id="start-world-cup-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-10 rounded-lg transition-transform transform hover:scale-105 shadow-lg text-xl">
+                        World Cup
+                    </button>
+                    <button id="show-custom-tournament-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-10 rounded-lg transition-transform transform hover:scale-105 shadow-lg text-xl">
+                        Custom Tournament
+                    </button>
+                </div>
+            </div>
+
+            <!-- Single Match View -->
+            <div id="single-match-view" class="view">
+                <div class="bg-gray-800 p-6 md:p-8 rounded-lg shadow-2xl">
+                    <!-- Team Selection for Single Match -->
+                    <div id="team-select-container">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                            <div class="flex flex-col items-center"><label for="team1-select" class="text-lg font-semibold mb-2">Team 1</label><select id="team1-select" class="w-full bg-gray-700 text-white p-3 rounded-md border-2 border-gray-600 focus:outline-none focus:border-green-400"></select></div>
+                            <div class="text-center text-4xl font-bold text-gray-500 hidden md:block">VS</div>
+                            <div class="flex flex-col items-center"><label for="team2-select" class="text-lg font-semibold mb-2">Team 2</label><select id="team2-select" class="w-full bg-gray-700 text-white p-3 rounded-md border-2 border-gray-600 focus:outline-none focus:border-green-400"></select></div>
+                        </div>
+                         <!-- Squad Display -->
+                        <div id="squad-display-container" class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 hidden">
+                            <div id="team1-squad"></div>
+                            <div id="team2-squad"></div>
+                        </div>
+                        <div class="text-center mt-8"><button id="simulate-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full transition-transform transform hover:scale-105 shadow-lg">Simulate Match</button></div>
+                        <div id="error-message" class="text-center text-red-400 mt-4 h-6"></div>
+                    </div>
+                    <!-- Match Simulation Display -->
+                    <div id="match-simulation-container" class="mt-8 pt-8 border-t border-gray-700 hidden"></div>
+                    <div class="text-center mt-8">
+                        <button class="back-to-menu-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-full">Back to Menu</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Tournament Setup View -->
+            <div id="custom-tournament-view" class="view">
+                <div class="bg-gray-800 p-6 md:p-8 rounded-lg shadow-2xl">
+                    <h2 class="text-2xl font-bold text-center mb-4 text-teal-400">Create Your Tournament</h2>
+                    <div class="flex justify-center gap-4 mb-4">
+                        <label class="font-bold">Tournament Size:</label>
+                        <div><input type="radio" name="tournament-size" id="size-8" value="8" class="mr-1"><label for="size-8">8 Teams</label></div>
+                        <div><input type="radio" name="tournament-size" id="size-16" value="16" class="mr-1"><label for="size-16">16 Teams</label></div>
+                        <div><input type="radio" name="tournament-size" id="size-32" value="32" checked class="mr-1"><label for="size-32">32 Teams</label></div>
+                    </div>
+                    <p class="text-center mb-4 text-gray-400">Select <span id="required-teams-count">32</span> teams below:</p>
+                    <div id="custom-team-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-4 bg-gray-900/50 rounded-md border border-gray-700">
+                        <!-- Checkboxes will be populated here -->
+                    </div>
+                    <div id="custom-error-message" class="text-center text-red-400 mt-4 h-6"></div>
+                    <div class="text-center mt-8 flex justify-center gap-4">
+                        <button id="start-custom-tournament-btn" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full transition-transform transform hover:scale-105 shadow-lg">Start Tournament</button>
+                        <button class="back-to-menu-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-full">Back to Menu</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- World Cup / Tournament View -->
+            <div id="tournament-view" class="view">
+                 <div class="text-center mb-6 flex justify-center items-center gap-4">
+                    <button id="sim-next-stage-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-md text-lg shadow-md transition-transform transform hover:scale-105">Simulate Next Stage</button>
+                </div>
+                <div id="world-cup-winner" class="text-center my-6 hidden">
+                    <h2 class="text-3xl font-bold text-yellow-400">TOURNAMENT CHAMPION</h2>
+                    <div id="winner-display" class="mt-4 p-4 bg-gray-800 rounded-lg inline-flex flex-col items-center shadow-lg"></div>
+                    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                        <div id="golden-boot-winner" class="p-4 bg-gray-800 rounded-lg shadow-lg"></div>
+                        <div id="biggest-upset" class="p-4 bg-gray-800 rounded-lg shadow-lg"></div>
+                        <div id="full-goalscorer-list" class="p-4 bg-gray-800 rounded-lg shadow-lg"></div>
+                    </div>
+                </div>
+                <h2 id="group-stage-title" class="text-2xl font-bold text-center mb-4">Group Stage</h2>
+                <div id="group-stage-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"></div>
+                <div id="knockout-stage-container" class="hidden">
+                    <h2 id="knockout-title" class="text-2xl font-bold text-center mb-4">Knockout Stage</h2>
+                    <div id="third-place-match-container" class="mb-8 hidden"></div>
+                    <div id="knockout-bracket-container" class="flex flex-row justify-center items-start space-x-8 overflow-x-auto p-4 bg-gray-800/50 rounded-lg min-h-[400px]"></div>
+                </div>
+                <div class="text-center mt-8">
+                    <button class="back-to-menu-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-full">Back to Menu</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- Data: All 208 FIFA Teams with Squads for Top 32 ---
+        const teams = [
+            { rank: 1, name: "Argentina", code: "ar", squad: [ {name: 'E. Martínez', pos: 'GK'}, {name: 'C. Romero', pos: 'DF'}, {name: 'N. Otamendi', pos: 'DF'}, {name: 'L. Martínez', pos: 'DF'}, {name: 'N. Molina', pos: 'DF'}, {name: 'R. De Paul', pos: 'MF'}, {name: 'L. Paredes', pos: 'MF'}, {name: 'A. Mac Allister', pos: 'MF'}, {name: 'E. Fernández', pos: 'MF'}, {name: 'L. Messi', pos: 'FW'}, {name: 'J. Álvarez', pos: 'FW'}, {name: 'Á. Di María', pos: 'FW'} ] },
+            { rank: 2, name: "France", code: "fr", squad: [ {name: 'M. Maignan', pos: 'GK'}, {name: 'J. Koundé', pos: 'DF'}, {name: 'D. Upamecano', pos: 'DF'}, {name: 'W. Saliba', pos: 'DF'}, {name: 'T. Hernandez', pos: 'DF'}, {name: 'A. Tchouaméni', pos: 'MF'}, {name: 'A. Griezmann', pos: 'MF'}, {name: 'A. Rabiot', pos: 'MF'}, {name: 'O. Dembélé', pos: 'FW'}, {name: 'K. Mbappé', pos: 'FW'}, {name: 'O. Giroud', pos: 'FW'} ] },
+            { rank: 3, name: "Belgium", code: "be", squad: [ {name: 'K. Casteels', pos: 'GK'}, {name: 'T. Castagne', pos: 'DF'}, {name: 'W. Faes', pos: 'DF'}, {name: 'J. Vertonghen', pos: 'DF'}, {name: 'A. Theate', pos: 'DF'}, {name: 'A. Onana', pos: 'MF'}, {name: 'Y. Tielemans', pos: 'MF'}, {name: 'K. De Bruyne', pos: 'MF'}, {name: 'J. Doku', pos: 'FW'}, {name: 'R. Lukaku', pos: 'FW'}, {name: 'L. Trossard', pos: 'FW'} ] },
+            { rank: 4, name: "Brazil", code: "br", squad: [ {name: 'Alisson', pos: 'GK'}, {name: 'Danilo', pos: 'DF'}, {name: 'Marquinhos', pos: 'DF'}, {name: 'Éder Militão', pos: 'DF'}, {name: 'Wendell', pos: 'DF'}, {name: 'Bruno Guimarães', pos: 'MF'}, {name: 'Lucas Paquetá', pos: 'MF'}, {name: 'Douglas Luiz', pos: 'MF'}, {name: 'Vini Jr.', pos: 'FW'}, {name: 'Rodrygo', pos: 'FW'}, {name: 'Raphinha', pos: 'FW'} ] },
+            { rank: 5, name: "England", code: "gb-eng", squad: [ {name: 'J. Pickford', pos: 'GK'}, {name: 'K. Walker', pos: 'DF'}, {name: 'J. Stones', pos: 'DF'}, {name: 'M. Guéhi', pos: 'DF'}, {name: 'K. Trippier', pos: 'DF'}, {name: 'D. Rice', pos: 'MF'}, {name: 'J. Bellingham', pos: 'MF'}, {name: 'P. Foden', pos: 'MF'}, {name: 'B. Saka', pos: 'FW'}, {name: 'H. Kane', pos: 'FW'}, {name: 'C. Palmer', pos: 'FW'} ] },
+            { rank: 6, name: "Portugal", code: "pt", squad: [ {name: 'Diogo Costa', pos: 'GK'}, {name: 'N. Mendes', pos: 'DF'}, {name: 'Pepe', pos: 'DF'}, {name: 'Rúben Dias', pos: 'DF'}, {name: 'J. Cancelo', pos: 'DF'}, {name: 'Vitinha', pos: 'MF'}, {name: 'Bruno Fernandes', pos: 'MF'}, {name: 'Bernardo Silva', pos: 'MF'}, {name: 'Rafael Leão', pos: 'FW'}, {name: 'Cristiano Ronaldo', pos: 'FW'}, {name: 'Diogo Jota', pos: 'FW'} ] },
+            { rank: 7, name: "Netherlands", code: "nl", squad: [ {name: 'B. Verbruggen', pos: 'GK'}, {name: 'D. Dumfries', pos: 'DF'}, {name: 'S. de Vrij', pos: 'DF'}, {name: 'V. van Dijk', pos: 'DF'}, {name: 'N. Aké', pos: 'DF'}, {name: 'J. Schouten', pos: 'MF'}, {name: 'T. Reijnders', pos: 'MF'}, {name: 'J. Veerman', pos: 'MF'}, {name: 'X. Simons', pos: 'FW'}, {name: 'M. Depay', pos: 'FW'}, {name: 'C. Gakpo', pos: 'FW'} ] },
+            { rank: 8, name: "Spain", code: "es", squad: [ {name: 'U. Simón', pos: 'GK'}, {name: 'Carvajal', pos: 'DF'}, {name: 'Le Normand', pos: 'DF'}, {name: 'Laporte', pos: 'DF'}, {name: 'Cucurella', pos: 'DF'}, {name: 'Rodri', pos: 'MF'}, {name: 'Pedri', pos: 'MF'}, {name: 'Fabián Ruiz', pos: 'MF'}, {name: 'Lamine Yamal', pos: 'FW'}, {name: 'Álvaro Morata', pos: 'FW'}, {name: 'Nico Williams', pos: 'FW'} ] },
+            { rank: 9, name: "Croatia", code: "hr", squad: [ {name: 'D. Livaković', pos: 'GK'}, {name: 'J. Stanišić', pos: 'DF'}, {name: 'J. Šutalo', pos: 'DF'}, {name: 'J. Gvardiol', pos: 'DF'}, {name: 'M. Pongračić', pos: 'DF'}, {name: 'L. Modrić', pos: 'MF'}, {name: 'M. Brozović', pos: 'MF'}, {name: 'M. Kovačić', pos: 'MF'}, {name: 'A. Kramarić', pos: 'FW'}, {name: 'B. Petković', pos: 'FW'}, {name: 'I. Perišić', pos: 'FW'} ] },
+            { rank: 10, name: "Italy", code: "it", squad: [ {name: 'G. Donnarumma', pos: 'GK'}, {name: 'G. Di Lorenzo', pos: 'DF'}, {name: 'A. Bastoni', pos: 'DF'}, {name: 'R. Calafiori', pos: 'DF'}, {name: 'F. Dimarco', pos: 'DF'}, {name: 'Jorginho', pos: 'MF'}, {name: 'N. Barella', pos: 'MF'}, {name: 'D. Frattesi', pos: 'MF'}, {name: 'F. Chiesa', pos: 'FW'}, {name: 'G. Scamacca', pos: 'FW'}, {name: 'L. Pellegrini', pos: 'FW'} ] },
+            { rank: 11, name: "Uruguay", code: "uy", squad: [ {name: 'S. Rochet', pos: 'GK'}, {name: 'N. Nández', pos: 'DF'}, {name: 'R. Araújo', pos: 'DF'}, {name: 'M. Olivera', pos: 'DF'}, {name: 'M. Viña', pos: 'DF'}, {name: 'M. Ugarte', pos: 'MF'}, {name: 'F. Valverde', pos: 'MF'}, {name: 'N. de la Cruz', pos: 'MF'}, {name: 'F. Pellistri', pos: 'FW'}, {name: 'D. Núñez', pos: 'FW'}, {name: 'M. Araújo', pos: 'FW'} ] },
+            { rank: 12, name: "Morocco", code: "ma", squad: [ {name: 'Y. Bounou', pos: 'GK'}, {name: 'A. Hakimi', pos: 'DF'}, {name: 'N. Aguerd', pos: 'DF'}, {name: 'R. Saïss', pos: 'DF'}, {name: 'Y. Attiat-Allah', pos: 'DF'}, {name: 'S. Amrabat', pos: 'MF'}, {name: 'A. Ounahi', pos: 'MF'}, {name: 'H. Ziyech', pos: 'MF'}, {name: 'S. Boufal', pos: 'FW'}, {name: 'Y. En-Nesyri', pos: 'FW'}, {name: 'A. Ezzalzouli', pos: 'FW'} ] },
+            { rank: 13, name: "USA", code: "us", squad: [ {name: 'M. Turner', pos: 'GK'}, {name: 'S. Dest', pos: 'DF'}, {name: 'C. Richards', pos: 'DF'}, {name: 'T. Ream', pos: 'DF'}, {name: 'A. Robinson', pos: 'DF'}, {name: 'T. Adams', pos: 'MF'}, {name: 'W. McKennie', pos: 'MF'}, {name: 'Y. Musah', pos: 'MF'}, {name: 'C. Pulisic', pos: 'FW'}, {name: 'F. Balogun', pos: 'FW'}, {name: 'T. Weah', pos: 'FW'} ] },
+            { rank: 14, name: "Colombia", code: "co", squad: [ {name: 'C. Vargas', pos: 'GK'}, {name: 'D. Muñoz', pos: 'DF'}, {name: 'D. Sánchez', pos: 'DF'}, {name: 'J. Lucumí', pos: 'DF'}, {name: 'J. Mojica', pos: 'DF'}, {name: 'J. Lerma', pos: 'MF'}, {name: 'J. Arias', pos: 'MF'}, {name: 'J. Rodríguez', pos: 'MF'}, {name: 'J. Quintero', pos: 'MF'}, {name: 'L. Díaz', pos: 'FW'}, {name: 'R. Borré', pos: 'FW'} ] },
+            { rank: 15, name: "Mexico", code: "mx", squad: [ {name: 'G. Ochoa', pos: 'GK'}, {name: 'J. Sánchez', pos: 'DF'}, {name: 'C. Montes', pos: 'DF'}, {name: 'J. Vásquez', pos: 'DF'}, {name: 'J. Gallardo', pos: 'DF'}, {name: 'E. Álvarez', pos: 'MF'}, {name: 'L. Chávez', pos: 'MF'}, {name: 'É. Sánchez', pos: 'MF'}, {name: 'H. Lozano', pos: 'FW'}, {name: 'S. Giménez', pos: 'FW'}, {name: 'A. Vega', pos: 'FW'} ] },
+            { rank: 16, name: "Germany", code: "de", squad: [ {name: 'M. Neuer', pos: 'GK'}, {name: 'J. Kimmich', pos: 'DF'}, {name: 'A. Rüdiger', pos: 'DF'}, {name: 'J. Tah', pos: 'DF'}, {name: 'M. Mittelstädt', pos: 'DF'}, {name: 'R. Andrich', pos: 'MF'}, {name: 'T. Kroos', pos: 'MF'}, {name: 'İ. Gündoğan', pos: 'MF'}, {name: 'J. Musiala', pos: 'FW'}, {name: 'F. Wirtz', pos: 'FW'}, {name: 'K. Havertz', pos: 'FW'} ] },
+            { rank: 17, name: "Senegal", code: "sn", squad: [ {name: 'É. Mendy', pos: 'GK'}, {name: 'K. Koulibaly', pos: 'DF'}, {name: 'A. Diallo', pos: 'DF'}, {name: 'Y. Sabaly', pos: 'DF'}, {name: 'I. Jakobs', pos: 'DF'}, {name: 'I. Gueye', pos: 'MF'}, {name: 'P. Gueye', pos: 'MF'}, {name: 'P. Sarr', pos: 'MF'}, {name: 'S. Mané', pos: 'FW'}, {name: 'I. Sarr', pos: 'FW'}, {name: 'N. Jackson', pos: 'FW'} ] },
+            { rank: 18, name: "Japan", code: "jp", squad: [ {name: 'D. Schmidt', pos: 'GK'}, {name: 'Y. Sugawara', pos: 'DF'}, {name: 'K. Itakura', pos: 'DF'}, {name: 'T. Tomiyasu', pos: 'DF'}, {name: 'H. Ito', pos: 'DF'}, {name: 'W. Endo', pos: 'MF'}, {name: 'H. Morita', pos: 'MF'}, {name: 'D. Kamada', pos: 'MF'}, {name: 'T. Kubo', pos: 'FW'}, {name: 'K. Mitoma', pos: 'FW'}, {name: 'A. Ueda', pos: 'FW'} ] },
+            { rank: 19, name: "Switzerland", code: "ch", squad: [ {name: 'Y. Sommer', pos: 'GK'}, {name: 'M. Akanji', pos: 'DF'}, {name: 'N. Elvedi', pos: 'DF'}, {name: 'R. Rodríguez', pos: 'DF'}, {name: 'S. Widmer', pos: 'DF'}, {name: 'G. Xhaka', pos: 'MF'}, {name: 'R. Freuler', pos: 'MF'}, {name: 'D. Zakaria', pos: 'MF'}, {name: 'X. Shaqiri', pos: 'FW'}, {name: 'B. Embolo', pos: 'FW'}, {name: 'N. Okafor', pos: 'FW'} ] },
+            { rank: 20, name: "IR Iran", code: "ir", squad: [ {name: 'A. Beiranvand', pos: 'GK'}, {name: 'S. Moharrami', pos: 'DF'}, {name: 'H. Kanaanizadegan', pos: 'DF'}, {name: 'M. Hosseini', pos: 'DF'}, {name: 'E. Hajsafi', pos: 'DF'}, {name: 'S. Ezatolahi', pos: 'MF'}, {name: 'A. Gholizadeh', pos: 'MF'}, {name: 'A. Jahanbakhsh', pos: 'MF'}, {name: 'M. Taremi', pos: 'FW'}, {name: 'S. Azmoun', pos: 'FW'}, {name: 'S. Ghoddos', pos: 'FW'} ] },
+            { rank: 21, name: "Denmark", code: "dk", squad: [ {name: 'K. Schmeichel', pos: 'GK'}, {name: 'A. Christensen', pos: 'DF'}, {name: 'S. Kjær', pos: 'DF'}, {name: 'J. Andersen', pos: 'DF'}, {name: 'J. Mæhle', pos: 'DF'}, {name: 'P. Højbjerg', pos: 'MF'}, {name: 'T. Delaney', pos: 'MF'}, {name: 'C. Eriksen', pos: 'MF'}, {name: 'M. Damsgaard', pos: 'FW'}, {name: 'R. Højlund', pos: 'FW'}, {name: 'Y. Poulsen', pos: 'FW'} ] },
+            { rank: 22, name: "Korea Republic", code: "kr", squad: [ {name: 'Kim Seung-gyu', pos: 'GK'}, {name: 'Kim Min-jae', pos: 'DF'}, {name: 'Kim Young-gwon', pos: 'DF'}, {name: 'Kim Jin-su', pos: 'DF'}, {name: 'Kim Moon-hwan', pos: 'DF'}, {name: 'Hwang In-beom', pos: 'MF'}, {name: 'Jung Woo-young', pos: 'MF'}, {name: 'Lee Jae-sung', pos: 'MF'}, {name: 'Son Heung-min', pos: 'FW'}, {name: 'Hwang Hee-chan', pos: 'FW'}, {name: 'Cho Gue-sung', pos: 'FW'} ] },
+            { rank: 23, name: "Australia", code: "au", squad: [ {name: 'M. Ryan', pos: 'GK'}, {name: 'H. Souttar', pos: 'DF'}, {name: 'K. Rowles', pos: 'DF'}, {name: 'A. Behich', pos: 'DF'}, {name: 'N. Atkinson', pos: 'DF'}, {name: 'A. Mooy', pos: 'MF'}, {name: 'J. Irvine', pos: 'MF'}, {name: 'R. McGree', pos: 'MF'}, {name: 'M. Leckie', pos: 'FW'}, {name: 'M. Duke', pos: 'FW'}, {name: 'C. Goodwin', pos: 'FW'} ] },
+            { rank: 24, name: "Ukraine", code: "ua", squad: [ {name: 'A. Lunin', pos: 'GK'}, {name: 'I. Zabarnyi', pos: 'DF'}, {name: 'M. Matviyenko', pos: 'DF'}, {name: 'V. Mykolenko', pos: 'DF'}, {name: 'Y. Konoplya', pos: 'DF'}, {name: 'T. Stepanenko', pos: 'MF'}, {name: 'O. Zinchenko', pos: 'MF'}, {name: 'G. Sudakov', pos: 'MF'}, {name: 'M. Mudryk', pos: 'FW'}, {name: 'A. Dovbyk', pos: 'FW'}, {name: 'V. Tsyhankov', pos: 'FW'} ] },
+            { rank: 25, name: "Austria", code: "at", squad: [ {name: 'H. Lindner', pos: 'GK'}, {name: 'D. Alaba', pos: 'DF'}, {name: 'G. Trauner', pos: 'DF'}, {name: 'P. Lienhart', pos: 'DF'}, {name: 'S. Posch', pos: 'DF'}, {name: 'M. Sabitzer', pos: 'MF'}, {name: 'K. Laimer', pos: 'MF'}, {name: 'N. Seiwald', pos: 'MF'}, {name: 'C. Baumgartner', pos: 'FW'}, {name: 'M. Gregoritsch', pos: 'FW'}, {name: 'M. Arnautović', pos: 'FW'} ] },
+            { rank: 26, name: "Sweden", code: "se", squad: [ {name: 'R. Olsen', pos: 'GK'}, {name: 'V. Lindelöf', pos: 'DF'}, {name: 'I. Hien', pos: 'DF'}, {name: 'L. Augustinsson', pos: 'DF'}, {name: 'E. Holm', pos: 'DF'}, {name: 'E. Forsberg', pos: 'MF'}, {name: 'J. Cajuste', pos: 'MF'}, {name: 'M. Svanberg', pos: 'MF'}, {name: 'D. Kulusevski', pos: 'FW'}, {name: 'A. Isak', pos: 'FW'}, {name: 'V. Gyökeres', pos: 'FW'} ] },
+            { rank: 27, name: "Hungary", code: "hu", squad: [ {name: 'P. Gulácsi', pos: 'GK'}, {name: 'W. Orbán', pos: 'DF'}, {name: 'A. Szalai', pos: 'DF'}, {name: 'A. Lang', pos: 'DF'}, {name: 'M. Kerkez', pos: 'DF'}, {name: 'A. Nagy', pos: 'MF'}, {name: 'D. Szoboszlai', pos: 'MF'}, {name: 'C. Styles', pos: 'MF'}, {name: 'R. Sallai', pos: 'FW'}, {name: 'M. Ádám', pos: 'FW'}, {name: 'B. Varga', pos: 'FW'} ] },
+            { rank: 28, name: "Nigeria", code: "ng", squad: [ {name: 'F. Uzoho', pos: 'GK'}, {name: 'W. Troost-Ekong', pos: 'DF'}, {name: 'C. Bassey', pos: 'DF'}, {name: 'O. Aina', pos: 'DF'}, {name: 'Z. Sanusi', pos: 'DF'}, {name: 'W. Ndidi', pos: 'MF'}, {name: 'A. Iwobi', pos: 'MF'}, {name: 'F. Onyeka', pos: 'MF'}, {name: 'V. Osimhen', pos: 'FW'}, {name: 'A. Lookman', pos: 'FW'}, {name: 'S. Chukwueze', pos: 'FW'} ] },
+            { rank: 29, name: "Wales", code: "gb-wls", squad: [ {name: 'D. Ward', pos: 'GK'}, {name: 'B. Davies', pos: 'DF'}, {name: 'J. Rodon', pos: 'DF'}, {name: 'C. Mepham', pos: 'DF'}, {name: 'N. Williams', pos: 'DF'}, {name: 'E. Ampadu', pos: 'MF'}, {name: 'A. Ramsey', pos: 'MF'}, {name: 'H. Wilson', pos: 'MF'}, {name: 'D. James', pos: 'FW'}, {name: 'K. Moore', pos: 'FW'}, {name: 'B. Johnson', pos: 'FW'} ] },
+            { rank: 30, name: "Poland", code: "pl", squad: [ {name: 'W. Szczęsny', pos: 'GK'}, {name: 'J. Kiwior', pos: 'DF'}, {name: 'J. Bednarek', pos: 'DF'}, {name: 'M. Cash', pos: 'DF'}, {name: 'B. Bereszyński', pos: 'DF'}, {name: 'P. Zieliński', pos: 'MF'}, {name: 'S. Szymański', pos: 'MF'}, {name: 'G. Krychowiak', pos: 'MF'}, {name: 'P. Frankowski', pos: 'FW'}, {name: 'R. Lewandowski', pos: 'FW'}, {name: 'A. Milik', pos: 'FW'} ] },
+            { rank: 31, name: "Ecuador", code: "ec", squad: [ {name: 'A. Domínguez', pos: 'GK'}, {name: 'P. Hincapié', pos: 'DF'}, {name: 'F. Torres', pos: 'DF'}, {name: 'W. Pacho', pos: 'DF'}, {name: 'P. Estupiñán', pos: 'DF'}, {name: 'M. Caicedo', pos: 'MF'}, {name: 'C. Gruezo', pos: 'MF'}, {name: 'J. Cifuentes', pos: 'MF'}, {name: 'G. Plata', pos: 'FW'}, {name: 'E. Valencia', pos: 'FW'}, {name: 'K. Páez', pos: 'FW'} ] },
+            { rank: 32, name: "Serbia", code: "rs", squad: [ {name: 'V. Milinković-Savić', pos: 'GK'}, {name: 'N. Milenković', pos: 'DF'}, {name: 'S. Pavlović', pos: 'DF'}, {name: 'M. Veljković', pos: 'DF'}, {name: 'F. Kostić', pos: 'MF'}, {name: 'S. Lukić', pos: 'MF'}, {name: 'S. Milinković-Savić', pos: 'MF'}, {name: 'D. Tadić', pos: 'MF'}, {name: 'A. Mitrović', pos: 'FW'}, {name: 'D. Vlahović', pos: 'FW'}, {name: 'L. Jović', pos: 'FW'} ] },
+            { rank: 33, name: "Peru", code: "pe" }, { rank: 34, "name": "Qatar", "code": "qa" }, { rank: 35, "name": "Russia", "code": "ru" }, { rank: 36, "name": "Egypt", "code": "eg" }, { rank: 37, "name": "Scotland", "code": "gb-sct" }, { rank: 38, "name": "Türkiye", "code": "tr" }, { rank: 39, "name": "Czechia", "code": "cz" }, { rank: 40, "name": "Algeria", "code": "dz" }, { rank: 41, "name": "Panama", "code": "pa" }, { rank: 42, "name": "Norway", "code": "no" }, { rank: 43, "name": "Romania", "code": "ro" }, { rank: 44, "name": "Slovakia", "code": "sk" }, { rank: 45, "name": "Mali", "code": "ml" }, { rank: 46, "name": "Tunisia", "code": "tn" }, { rank: 47, "name": "Côte d'Ivoire", "code": "ci" }, { rank: 48, "name": "Republic of Ireland", "code": "ie" }, { rank: 49, "name": "Canada", "code": "ca" }, { rank: 50, "name": "Greece", "code": "gr" }, { rank: 51, "name": "Saudi Arabia", "code": "sa" }, { rank: 52, "name": "Venezuela", "code": "ve" }, { rank: 53, "name": "Cameroon", "code": "cm" }, { rank: 54, "name": "Paraguay", "code": "py" }, { rank: 55, "name": "Jamaica", "code": "jm" }, { rank: 56, "name": "Chile", "code": "cl" }, { rank: 57, "name": "Burkina Faso", "code": "bf" }, { rank: 58, "name": "South Africa", "code": "za" }, { rank: 59, "name": "Finland", "code": "fi" }, { rank: 60, "name": "Uzbekistan", "code": "uz" }, { rank: 61, "name": "DR Congo", "code": "cd" }, { rank: 62, "name": "Ghana", "code": "gh" }, { rank: 63, "name": "North Macedonia", "code": "mk" }, { rank: 64, "name": "Slovenia", "code": "si" }, { rank: 65, "name": "Iraq", "code": "iq" }, { rank: 66, "name": "Albania", "code": "al" }, { rank: 67, "name": "Costa Rica", "code": "cr" }, { rank: 68, "name": "Bosnia and Herzegovina", "code": "ba" }, { rank: 69, "name": "Iceland", "code": "is" }, { rank: 70, "name": "United Arab Emirates", "code": "ae" }, { rank: 71, "name": "Montenegro", "code": "me" }, { rank: 72, "name": "Jordan", "code": "jo" }, { rank: 73, "name": "Cabo Verde", "code": "cv" }, { rank: 74, "name": "New Zealand", "code": "nz" }, { rank: 75, "name": "Oman", "code": "om" }, { rank: 76, "name": "Israel", "code": "il" }, { rank: 77, "name": "Honduras", "code": "hn" }, { rank: 78, "name": "Georgia", "code": "ge" }, { rank: 79, "name": "Guinea", "code": "gn" }, { rank: 80, "name": "Bulgaria", "code": "bg" }, { rank: 81, "name": "Bahrain", "code": "bh" }, { rank: 82, "name": "El Salvador", "code": "sv" }, { rank: 83, "name": "Luxembourg", "code": "lu" }, { rank: 84, "name": "Bolivia", "code": "bo" }, { rank: 85, "name": "Zambia", "code": "zm" }, { rank: 86, "name": "China PR", "code": "cn" }, { rank: 87, "name": "Equatorial Guinea", "code": "gq" }, { rank: 88, "name": "Haiti", "code": "ht" }, { rank: 89, "name": "Gabon", "code": "ga" }, { rank: 90, "name": "Syria", "code": "sy" }, { rank: 91, "name": "Curaçao", "code": "cw" }, { rank: 92, "name": "Uganda", "code": "ug" }, { rank: 93, "name": "Palestine", "code": "ps" }, { rank: 94, "name": "Angola", "code": "ao" }, { rank: 95, "name": "Armenia", "code": "am" }, { rank: 96, "name": "Belarus", "code": "by" }, { rank: 97, "name": "Benin", "code": "bj" }, { rank: 98, "name": "Trinidad and Tobago", "code": "tt" }, { rank: 99, "name": "Kyrgyz Republic", "code": "kg" }, { rank: 100, "name": "Thailand", "code": "th" }, { rank: 101, name: "Kosovo", code: "xk" }, { rank: 102, name: "Kazakhstan", "code": "kz" }, { rank: 103, name: "Mozambique", "code": "mz" }, { rank: 104, name: "Vietnam", "code": "vn" }, { rank: 105, name: "Namibia", "code": "na" }, { rank: 106, name: "Mauritania", "code": "mr" }, { rank: 107, name: "Congo", "code": "cg" }, { rank: 108, name: "Kenya", "code": "ke" }, { rank: 109, name: "Madagascar", "code": "mg" }, { rank: 110, name: "Guatemala", "code": "gt" }, { rank: 111, name: "Tajikistan", "code": "tj" }, { rank: 112, name: "Tanzania", "code": "tz" }, { rank: 113, name: "India", "code": "in" }, { rank: 114, name: "Comoros", "code": "km" }, { rank: 115, name: "Libya", "code": "ly" }, { rank: 116, name: "Togo", "code": "tg" }, { rank: 117, name: "Sudan", "code": "sd" }, { rank: 118, name: "Guinea-Bissau", "code": "gw" }, { rank: 119, name: "Sierra Leone", "code": "sl" }, { rank: 120, name: "Nicaragua", "code": "ni" }, { rank: 121, name: "Latvia", "code": "lv" }, { rank: 122, name: "Central African Republic", "code": "cf" }, { rank: 123, name: "Gambia", "code": "gm" }, { rank: 124, name: "Estonia", "code": "ee" }, { rank: 125, name: "Solomon Islands", "code": "sb" }, { rank: 126, name: "Rwanda", "code": "rw" }, { rank: 127, name: "Malaysia", "code": "my" }, { rank: 128, name: "Kuwait", "code": "kw" }, { rank: 129, name: "Faroe Islands", "code": "fo" }, { rank: 130, name: "Cyprus", "code": "cy" }, { rank: 131, name: "Philippines", "code": "ph" }, { rank: 132, name: "Lithuania", "code": "lt" }, { rank: 133, name: "Azerbaijan", "code": "az" }, { rank: 134, name: "Niger", "code": "ne" }, { rank: 135, name: "Zimbabwe", "code": "zw" }, { rank: 136, "name": "Turkmenistan", "code": "tm" }, { rank: 137, name: "Indonesia", "code": "id" }, { rank: 138, name: "Yemen", "code": "ye" }, { rank: 139, name: "Suriname", "code": "sr" }, { rank: 140, name: "Burundi", "code": "bi" }, { rank: 141, name: "Eswatini", "code": "sz" }, { rank: 142, name: "Ethiopia", "code": "et" }, { rank: 143, name: "Botswana", "code": "bw" }, { rank: 144, name: "Liberia", "code": "lr" }, { rank: 145, name: "Afghanistan", "code": "af" }, { rank: 146, name: "Malawi", "code": "mw" }, { rank: 147, name: "Dominican Republic", "code": "do" }, { rank: 148, name: "Lesotho", "code": "ls" }, { rank: 149, name: "Antigua and Barbuda", "code": "ag" }, { rank: 150, name: "Hong Kong, China", "code": "hk" }, { rank: 151, name: "Singapore", "code": "sg" }, { rank: 152, name: "New Caledonia", "code": "nc" }, { rank: 153, name: "Guyana", "code": "gy" }, { rank: 154, name: "Maldives", "code": "mv" }, { rank: 155, name: "Chinese Taipei", "code": "tw" }, { rank: 156, name: "Tahiti", "code": "pf" }, { rank: 157, name: "Myanmar", "code": "mm" }, { rank: 158, name: "Andorra", "code": "ad" }, { rank: 159, name: "St. Vincent and the Grenadines", "code": "vc" }, { rank: 160, name: "Papua New Guinea", "code": "pg" }, { rank: 161, name: "Fiji", "code": "fj" }, { rank: 162, name: "Vanuatu", "code": "vu" }, { rank: 163, name: "Bermuda", "code": "bm" }, { rank: 164, name: "Puerto Rico", "code": "pr" }, { rank: 165, name: "St. Kitts and Nevis", "code": "kn" }, { rank: 166, name: "Grenada", "code": "gd" }, { rank: 167, name: "St. Lucia", "code": "lc" }, { rank: 168, name: "Barbados", "code": "bb" }, { rank: 169, name: "Moldova", "code": "md" }, { rank: 170, name: "Malta", "code": "mt" }, { rank: 171, name: "Cambodia", "code": "kh" }, { rank: 172, name: "South Sudan", "code": "ss" }, { rank: 173, name: "Nepal", "code": "np" }, { rank: 174, name: "Mauritius", "code": "mu" }, { rank: 175, name: "Chad", "code": "td" }, { rank: 176, name: "Laos", "code": "la" }, { rank: 177, name: "Mongolia", "code": "mn" }, { rank: 178, name: "Bhutan", "code": "bt" }, { rank: 179, name: "Bangladesh", "code": "bd" }, { rank: 180, name: "Macau", "code": "mo" }, { rank: 181, name: "Cook Islands", "code": "ck" }, { rank: 182, name: "Samoa", "code": "ws" }, { rank: 183, name: "American Samoa", "code": "as" }, { rank: 184, name: "Tonga", "code": "to" }, { rank: 185, name: "Brunei Darussalam", "code": "bn" }, { rank: 186, name: "São Tomé and Príncipe", "code": "st" }, { rank: 187, name: "Djibouti", "code": "dj" }, { rank: 188, name: "Seychelles", "code": "sc" }, { rank: 189, name: "Eritrea", "code": "er" }, { rank: 190, name: "Somalia", "code": "so" }, { rank: 191, name: "Liechtenstein", "code": "li" }, { rank: 192, name: "Gibraltar", "code": "gi" }, { rank: 193, name: "Cayman Islands", "code": "ky" }, { rank: 194, name: "Turks and Caicos Islands", "code": "tc" }, { rank: 195, name: "Bahamas", "code": "bs" }, { rank: 196, name: "Aruba", "code": "aw" }, { rank: 197, name: "US Virgin Islands", "code": "vi" }, { rank: 198, name: "British Virgin Islands", "code": "vg" }, { rank: 199, name: "Anguilla", "code": "ai" }, { rank: 200, name: "San Marino", "code": "sm" }, { rank: 201, "name": "Pakistan", "code": "pk" }, { rank: 202, "name": "Sri Lanka", "code": "lk" }, { rank: 203, "name": "Guam", "code": "gu" }, { rank: 204, "name": "Timor-Leste", "code": "tl" }, { rank: 205, "name": "Montserrat", "code": "ms" }, { rank: 206, "name": "Dominica", "code": "dm" }, { rank: 207, "name": "Belize", "code": "bz" }, { rank: 208, "name": "Northern Ireland", "code": "gb-nir" }
+        ];
+
+        let tournament = {};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- UI Elements ---
+            const subtitle = document.getElementById('subtitle');
+            const views = document.querySelectorAll('.view');
+            const showSingleMatchBtn = document.getElementById('show-single-match-btn');
+            const startWorldCupBtn = document.getElementById('start-world-cup-btn');
+            const showCustomTournamentBtn = document.getElementById('show-custom-tournament-btn');
+            const backToMenuBtns = document.querySelectorAll('.back-to-menu-btn');
+            
+            // Single Match
+            const team1Select = document.getElementById('team1-select');
+            const team2Select = document.getElementById('team2-select');
+            const simulateBtn = document.getElementById('simulate-btn');
+            const errorMessage = document.getElementById('error-message');
+            const matchSimContainer = document.getElementById('match-simulation-container');
+            const squadDisplayContainer = document.getElementById('squad-display-container');
+            const team1SquadEl = document.getElementById('team1-squad');
+            const team2SquadEl = document.getElementById('team2-squad');
+            
+            // Custom Tournament
+            const requiredTeamsCountEl = document.getElementById('required-teams-count');
+            const customTeamList = document.getElementById('custom-team-list');
+            const customErrorMessage = document.getElementById('custom-error-message');
+            const startCustomTournamentBtn = document.getElementById('start-custom-tournament-btn');
+            const tournamentSizeRadios = document.querySelectorAll('input[name="tournament-size"]');
+
+            // Tournament View
+            const groupContainer = document.getElementById('group-stage-container');
+            const knockoutStageContainer = document.getElementById('knockout-stage-container');
+            const groupStageTitle = document.getElementById('group-stage-title');
+            const bracketContainer = document.getElementById('knockout-bracket-container');
+            const simNextStageBtn = document.getElementById('sim-next-stage-btn');
+            const winnerContainer = document.getElementById('world-cup-winner');
+            const winnerDisplay = document.getElementById('winner-display');
+            const thirdPlaceContainer = document.getElementById('third-place-match-container');
+            const goldenBootWinnerEl = document.getElementById('golden-boot-winner');
+            const biggestUpsetEl = document.getElementById('biggest-upset');
+            const fullGoalscorerListEl = document.getElementById('full-goalscorer-list');
+
+            // --- Utility Functions ---
+            const getTeamByName = (name) => teams.find(t => t.name === name);
+            const shuffleArray = (array) => array.sort(() => Math.random() - 0.5);
+
+            // --- View Management ---
+            function showView(viewId) {
+                views.forEach(v => v.classList.remove('active'));
+                document.getElementById(viewId).classList.add('active');
+                const subtitles = {
+                    'single-match-view': "Pit any two nations against each other.",
+                    'tournament-view': "Simulate the tournament.",
+                    'custom-tournament-view': "Create your own custom tournament.",
+                    'mode-select-view': "Select a game mode to begin."
+                };
+                subtitle.textContent = subtitles[viewId] || subtitles['mode-select-view'];
+            }
+
+            // --- Core Simulation Engine ---
+            function runMatch(team1, team2, isKnockout = false) {
+                if (!team1 || !team2) return { team1, team2, team1Score: 0, team2Score: 0, winner: null, loser: null, events: [], stats: {} };
+                
+                const k = 0.075;
+                const strength1 = 1 / (1 + k * (team1.rank - 1));
+                const strength2 = 1 / (1 + k * (team2.rank - 1));
+                const totalStrength = strength1 + strength2;
+                
+                const baseShotChance = 0.15; 
+                const onTargetChance = 0.4;
+
+                const rankRatio = Math.max(team1.rank, team2.rank) / Math.min(team1.rank, team2.rank);
+                let goalConversionModifier;
+
+                if (team1.rank <= 50 && team2.rank <= 50) {
+                    goalConversionModifier = 1 + Math.log10(rankRatio) * 0.75; 
+                } else {
+                    goalConversionModifier = 1 + Math.log(rankRatio);
+                }
+                
+                const team1GoalConversion = 0.25 * goalConversionModifier;
+                const team2GoalConversion = 0.25 / goalConversionModifier;
+
+                const stats = {
+                    [team1.name]: { shots: 0, shotsOnTarget: 0, goals: 0, corners: 0, fouls: 0, offsides: 0, yellowCards: 0, redCards: 0, possession: 0 },
+                    [team2.name]: { shots: 0, shotsOnTarget: 0, goals: 0, corners: 0, fouls: 0, offsides: 0, yellowCards: 0, redCards: 0, possession: 0 }
+                };
+                const events = [];
+                let t1s = 0, t2s = 0;
+
+                for (let i = 1; i <= 90; i++) {
+                    const attackingTeam = (Math.random() * totalStrength < strength1) ? team1 : team2;
+                    const defendingTeam = (attackingTeam.name === team1.name) ? team2 : team1;
+                    stats[attackingTeam.name].possession++;
+
+                    if (Math.random() < baseShotChance) {
+                        stats[attackingTeam.name].shots++;
+                        if(Math.random() < onTargetChance) {
+                            stats[attackingTeam.name].shotsOnTarget++;
+                            const goalChance = (attackingTeam.name === team1.name) ? team1GoalConversion : team2GoalConversion;
+                            if (Math.random() < goalChance) {
+                                let scorer = 'Unknown';
+                                if (attackingTeam.squad) {
+                                    const forwards = attackingTeam.squad.filter(p => p.pos === 'FW');
+                                    scorer = forwards.length > 0 ? forwards[Math.floor(Math.random() * forwards.length)].name : 'Unknown Forward';
+                                }
+                                if (attackingTeam.name === team1.name) t1s++; else t2s++;
+                                events.push({ minute: i, team: attackingTeam, player: scorer, type: 'goal' });
+                            }
+                        }
+                    }
+                    
+                    if(Math.random() < 0.1) stats[attackingTeam.name].corners++;
+                    if(Math.random() < 0.15) {
+                        stats[defendingTeam.name].fouls++;
+                        if(Math.random() < 0.15) { 
+                            let player = 'Unknown';
+                            if (defendingTeam.squad) {
+                                const outfielders = defendingTeam.squad.filter(p => p.pos !== 'GK');
+                                player = outfielders.length > 0 ? outfielders[Math.floor(Math.random() * outfielders.length)].name : 'Unknown Player';
+                            }
+                            if(Math.random() < 0.05) { 
+                                stats[defendingTeam.name].redCards++;
+                                events.push({ minute: i, team: defendingTeam, player, type: 'red' });
+                            } else { 
+                                stats[defendingTeam.name].yellowCards++;
+                                events.push({ minute: i, team: defendingTeam, player, type: 'yellow' });
+                            }
+                        }
+                    }
+                    if(Math.random() < 0.05) stats[attackingTeam.name].offsides++;
+                }
+                
+                stats[team1.name].goals = t1s;
+                stats[team2.name].goals = t2s;
+
+                if (isKnockout&&t1s===t2s) { 
+                    for (let i=91;i<=120;i++){
+                        if(Math.random()<0.12){
+                            const etAttacker = (Math.random() * totalStrength < strength1) ? team1 : team2;
+                             if(Math.random()<0.13){
+                                 if (etAttacker.name === team1.name) t1s++; else t2s++;
+                                 events.push({ minute: i, team: etAttacker, type: 'goal', player: 'Extra Time Goal' });
+                             }
+                        }
+                    } 
+                    if(t1s===t2s){
+                        const winner = (Math.random()>0.5) ? team1 : team2;
+                        if(winner.name === team1.name) t1s++; else t2s++;
+                        events.push({ minute: 'PEN', team: winner, type: 'goal', player: 'Penalty Shootout' });
+                    }
+                }
+                
+                const totalPossession = stats[team1.name].possession + stats[team2.name].possession;
+                stats[team1.name].possession = totalPossession > 0 ? Math.round((stats[team1.name].possession / totalPossession) * 100) : 50;
+                stats[team2.name].possession = 100 - stats[team1.name].possession;
+
+                return {team1,team2,team1Score:t1s,team2Score:t2s,winner:t1s>t2s?team1:t2s>t1s?team2:null,loser:t1s<t2s?team1:t2s<t1s?team2:null, events, stats};
+            }
+            
+            // --- Single Match Mode ---
+            function populateSelects() {
+                if(team1Select.options.length>1)return;
+                teams.forEach(t=>{const o=new Option(`(${t.rank}) ${t.name}`,t.name);team1Select.add(o.cloneNode(true));team2Select.add(o.cloneNode(true))});
+                team2Select.selectedIndex=1;
+            }
+            function runSingleMatchSimulation() {
+                if (team1Select.value === team2Select.value) { errorMessage.textContent = 'Please select two different teams.'; return; }
+                errorMessage.textContent = '';
+                
+                const team1 = getTeamByName(team1Select.value);
+                const team2 = getTeamByName(team2Select.value);
+                const result = runMatch(team1, team2);
+                
+                const timelineHtml = result.events.sort((a, b) => (a.minute === 'PEN' ? 999 : a.minute) - (b.minute === 'PEN' ? 999 : b.minute)).length > 0 
+                    ? result.events.map(event => {
+                        let icon = '';
+                        let minuteText = `${event.minute}'`;
+                        switch(event.type) {
+                            case 'goal':
+                                icon = '⚽';
+                                if (event.minute === 'PEN') minuteText = 'PEN';
+                                break;
+                            case 'yellow':
+                                icon = '<div class="inline-block w-3 h-4 bg-yellow-400 rounded-sm"></div>';
+                                break;
+                            case 'red':
+                                icon = '<div class="inline-block w-3 h-4 bg-red-600 rounded-sm"></div>';
+                                break;
+                        }
+                        return `<div class="text-sm flex items-center gap-2">${icon} ${minuteText} - ${event.player} (${event.team.name})</div>`;
+                    }).join('')
+                    : '<div class="text-sm text-gray-400">No notable events.</div>';
+                
+                const statsHtml = `
+                    <h3 class="text-xl font-bold text-center mb-4">Match Statistics</h3>
+                    <div class="space-y-2 text-sm">
+                        ${Object.keys(result.stats[team1.name]).map(key => {
+                            const statName = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                            return `<div class="grid grid-cols-3 text-center items-center">
+                                <span class="font-bold">${result.stats[team1.name][key]}${key === 'possession' ? '%' : ''}</span>
+                                <span class="text-gray-400">${statName}</span>
+                                <span class="font-bold">${result.stats[team2.name][key]}${key === 'possession' ? '%' : ''}</span>
+                            </div>`
+                        }).join('')}
+                    </div>
+                `;
+
+                matchSimContainer.innerHTML = `
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="text-center w-1/3"><img src="https://flagcdn.com/w160/${team1.code.toLowerCase()}.png" class="w-20 h-auto mx-auto mb-2 rounded-md shadow-md" onerror="this.src='https://placehold.co/160x107/1f2937/ffffff?text=Flag'"><h2 class="text-xl font-bold">${team1.name}</h2></div>
+                        <div class="text-center"><p class="text-5xl font-bold"><span>${result.team1Score}</span> - <span>${result.team2Score}</span></p><p class="text-gray-400 text-sm mt-1">Full Time</p></div>
+                        <div class="text-center w-1/3"><img src="https://flagcdn.com/w160/${team2.code.toLowerCase()}.png" class="w-20 h-auto mx-auto mb-2 rounded-md shadow-md" onerror="this.src='https://placehold.co/160x107/1f2937/ffffff?text=Flag'"><h2 class="text-xl font-bold">${team2.name}</h2></div>
+                    </div>
+                    <div id="match-timeline" class="h-24 overflow-y-auto bg-gray-900/50 p-4 rounded-md space-y-2 mb-6">
+                        ${timelineHtml}
+                    </div>
+                    <div>
+                        ${statsHtml}
+                    </div>
+                `;
+                matchSimContainer.classList.remove('hidden');
+            }
+
+            function displaySquads() {
+                const team1 = getTeamByName(team1Select.value);
+                const team2 = getTeamByName(team2Select.value);
+                squadDisplayContainer.classList.remove('hidden');
+
+                team1SquadEl.innerHTML = `<h3 class="font-bold text-center mb-2">${team1.name} Squad</h3>` + (team1.squad ? team1.squad.map(p => `<div class="text-xs">${p.name} (${p.pos})</div>`).join('') : '<div class="text-xs text-gray-400">No squad data</div>');
+                team2SquadEl.innerHTML = `<h3 class="font-bold text-center mb-2">${team2.name} Squad</h3>` + (team2.squad ? team2.squad.map(p => `<div class="text-xs">${p.name} (${p.pos})</div>`).join('') : '<div class="text-xs text-gray-400">No squad data</div>');
+            }
+
+            // --- Tournament Logic (World Cup & Custom) ---
+            function setupTournament(participantTeams) {
+                tournament = { goalscorers: {}, stats: { biggestUpset: null } }; 
+                const tournamentSize = participantTeams.length;
+                const numGroups = tournamentSize / 4;
+                
+                const sortedTeams = [...participantTeams].sort((a, b) => a.rank - b.rank);
+                const pots = [];
+                const potSize = tournamentSize / 4;
+                for (let i = 0; i < 4; i++) {
+                    const pot = sortedTeams.slice(i * potSize, (i + 1) * potSize);
+                    pots.push(shuffleArray(pot));
+                }
+                
+                tournament.groups = Array.from({length: numGroups}, (_, i) => ({
+                    name: String.fromCharCode(65 + i),
+                    teams: pots.map(pot => pot[i]).map(t => ({...t, p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0})),
+                    matches: []
+                }));
+
+                tournament.currentStage = 'groups-1';
+                
+                updateSimButton();
+                renderGroups();
+                renderBracket(true);
+                
+                winnerContainer.classList.add('hidden');
+                goldenBootWinnerEl.classList.add('hidden');
+                biggestUpsetEl.classList.add('hidden');
+                fullGoalscorerListEl.classList.add('hidden');
+                knockoutStageContainer.classList.add('hidden');
+                thirdPlaceContainer.classList.add('hidden');
+                showView('tournament-view');
+            }
+            
+            function renderGroups() {
+                if (!tournament.groups || tournament.groups.length === 0) {
+                    groupStageTitle.classList.add('hidden');
+                    groupContainer.innerHTML = '';
+                    return;
+                }
+                groupStageTitle.classList.remove('hidden');
+                const groupCols = tournament.groups.length === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-4';
+                groupContainer.className = `grid grid-cols-1 md:grid-cols-2 ${groupCols} gap-4 mb-8`;
+                
+                groupContainer.innerHTML = tournament.groups.map(g => {
+                    const sortedTeams = [...g.teams].sort((a,b) => b.pts-a.pts||b.gd-a.gd||b.gf-a.gf);
+                    return `<div class="bg-gray-800 p-4 rounded-lg shadow-md"><h3 class="font-bold text-lg mb-2 text-center text-green-400">Group ${g.name}</h3><table class="w-full text-sm text-left"><thead class="text-gray-400"><tr><th class="p-1">Team</th><th class="p-1 text-center">W-D-L</th><th class="p-1 text-center">GD</th><th class="p-1 text-center">Pts</th></tr></thead><tbody>${sortedTeams.map(t=>`
+<tr class="border-t border-gray-700"><td class="p-1 flex items-center gap-2"><img src="https://flagcdn.com/w40/${t.code.toLowerCase()}.png" class="w-5 h-auto" alt="${t.name} flag" onerror="this.style.display='none'">${t.name}</td><td class="p-1 text-center">${t.w}-${t.d}-${t.l}</td><td class="p-1 text-center">${t.gd>0?'+':''}${t.gd}</td><td class="p-1 text-center font-bold">${t.pts}</td></tr>`).join('')}</tbody></table><div class="mt-2 pt-2 border-t border-gray-700 space-y-1 text-xs text-gray-300">${g.matches.map(m=>`<div class="flex justify-between items-center bg-gray-900/50 p-1 rounded-md"><span>${m.team1.name.substring(0,12)}</span><span class="font-bold text-white">${m.team1Score} - ${m.team2Score}</span><span>${m.team2.name.substring(0,12)}</span></div>`).join('')}</div></div>`}).join('');
+            }
+            
+            function simulateMatchday(matchday) {
+                const pairings = {1:[[0,1],[2,3]], 2:[[0,2],[1,3]], 3:[[0,3],[1,2]]};
+                tournament.groups.forEach(g => {
+                    pairings[matchday].forEach(p => {
+                        const tA=g.teams[p[0]], tB=g.teams[p[1]];
+                        const res=runMatch(tA,tB,false); 
+                        g.matches.push(res);
+                        tA.p++;tB.p++; tA.gf+=res.team1Score;tA.ga+=res.team2Score;tB.gf+=res.team2Score;tB.ga+=res.team1Score;
+                        tA.gd=tA.gf-tA.ga;tB.gd=tB.gf-tB.ga;
+                        if(res.winner){const w=(res.winner.name===tA.name)?tA:tB,l=(res.loser.name===tA.name)?tA:tB;w.w++;w.pts+=3;l.l++}
+                        else{tA.d++;tB.d++;tA.pts++;tB.pts++}
+                        res.events.filter(e => e.type === 'goal' && e.minute !== 'PEN').forEach(goal => {
+                            tournament.goalscorers[goal.player] = (tournament.goalscorers[goal.player] || 0) + 1;
+                        });
+                        
+                        if (res.winner && res.winner.rank > res.loser.rank) {
+                            const rankDifference = res.winner.rank - res.loser.rank;
+                            if (!tournament.stats.biggestUpset || rankDifference > tournament.stats.biggestUpset.rankDifference) {
+                                tournament.stats.biggestUpset = { ...res, rankDifference };
+                            }
+                        }
+                    });
+                });
+            }
+
+            function setupKnockoutStage() {
+                knockoutStageContainer.classList.remove('hidden');
+                const numGroups = tournament.groups.length;
+                let pairings = [];
+                let knockoutStageName = '';
+
+                if (numGroups === 8) { // 32 teams -> Round of 16
+                    knockoutStageName = 'ro16';
+                    pairings = [ ['A',1,'B',2], ['C',1,'D',2], ['E',1,'F',2], ['G',1,'H',2], ['B',1,'A',2], ['D',1,'C',2], ['F',1,'E',2], ['H',1,'G',2] ];
+                } else if (numGroups === 4) { // 16 teams -> Quarter-Finals
+                    knockoutStageName = 'qf';
+                    pairings = [ ['A',1,'B',2], ['C',1,'D',2], ['B',1,'A',2], ['D',1,'C',2] ];
+                } else if (numGroups === 2) { // 8 teams -> Semi-Finals
+                    knockoutStageName = 'sf';
+                    pairings = [ ['A',1,'B',2], ['B',1,'A',2] ];
+                }
+
+                const allGroupStandings = {};
+                tournament.groups.forEach(g => {
+                    allGroupStandings[g.name] = [...g.teams].sort((a,b) => b.pts-a.pts || b.gd-a.gd || b.gf-a.gf);
+                });
+
+                tournament[knockoutStageName] = pairings.map(p => {
+                    const team1 = allGroupStandings[p[0]][p[1] - 1];
+                    const team2 = allGroupStandings[p[2]][p[3] - 1];
+                    return { team1, team2, result: null };
+                });
+            }
+
+            function simulateKnockoutRound(stage, nextStage) {
+                const currentMatches=tournament[stage];
+                currentMatches.forEach(m=>{
+                    if(!m.result) {
+                        m.result=runMatch(m.team1,m.team2,true)
+                        m.result.events.filter(e => e.type === 'goal' && e.minute !== 'PEN').forEach(goal => {
+                            tournament.goalscorers[goal.player] = (tournament.goalscorers[goal.player] || 0) + 1;
+                        });
+                        if (m.result.winner && m.result.winner.rank > m.result.loser.rank) {
+                            const rankDifference = m.result.winner.rank - m.result.loser.rank;
+                            if (!tournament.stats.biggestUpset || rankDifference > tournament.stats.biggestUpset.rankDifference) {
+                                tournament.stats.biggestUpset = { ...m.result, rankDifference };
+                            }
+                        }
+                    }
+                });
+                if(stage==='sf'){tournament.final=[{team1:currentMatches[0].result.winner,team2:currentMatches[1].result.winner,result:null}];tournament.thirdPlace=[{team1:currentMatches[0].result.loser,team2:currentMatches[1].result.loser,result:null}]}
+                else if(stage!=='final'&&stage!=='thirdPlace'){tournament[nextStage]=[];for(let i=0;i<currentMatches.length;i+=2){tournament[nextStage].push({team1:currentMatches[i].result.winner,team2:currentMatches[i+1].result.winner,result:null})}}
+                if(stage==='final'){displayWinner(currentMatches[0].result.winner)}
+            }
+            
+            function simulateNextStage() {
+                const numGroups = tournament.groups.length;
+                const stageActions = {
+                    'groups-1':()=>{simulateMatchday(1);tournament.currentStage='groups-2'},
+                    'groups-2':()=>{simulateMatchday(2);tournament.currentStage='groups-3'},
+                    'groups-3':()=>{
+                        simulateMatchday(3);
+                        setupKnockoutStage();
+                        if (numGroups === 8) tournament.currentStage = 'ro16';
+                        else if (numGroups === 4) tournament.currentStage = 'qf';
+                        else if (numGroups === 2) tournament.currentStage = 'sf';
+                    },
+                    'ro16':()=>{simulateKnockoutRound('ro16','qf');tournament.currentStage='qf'},
+                    'qf':()=>{simulateKnockoutRound('qf','sf');tournament.currentStage='sf'},
+                    'sf':()=>{simulateKnockoutRound('sf');tournament.currentStage='thirdPlace'},
+                    'thirdPlace':()=>{simulateKnockoutRound('thirdPlace');tournament.currentStage='final'},
+                    'final':()=>{simulateKnockoutRound('final');tournament.currentStage='end'}
+                };
+                stageActions[tournament.currentStage]();
+                renderGroups(); 
+                renderBracket(); 
+                updateSimButton();
+            }
+
+            function updateSimButton() {
+                const buttonText = {
+                    'groups-1':'Sim Matchday 1','groups-2':'Sim Matchday 2','groups-3':'Sim Matchday 3',
+                    'ro16':'Sim Round of 16','qf':'Sim Quarter-finals','sf':'Sim Semi-finals',
+                    'thirdPlace':'Sim 3rd Place Playoff','final':'Sim Final','end':'Finished'
+                };
+                const currentText = buttonText[tournament.currentStage];
+                simNextStageBtn.textContent = currentText;
+                
+                const isFinished = tournament.currentStage === 'end';
+                simNextStageBtn.disabled = isFinished;
+            }
+
+            function displayWinner(winner) {
+                winnerDisplay.innerHTML = `<img src="https://flagcdn.com/w160/${winner.code.toLowerCase()}.png" class="w-32 h-auto mx-auto mb-4 rounded-md shadow-lg" alt="${winner.name} flag" onerror="this.src='https://placehold.co/160x107/1f2937/ffffff?text=Flag'"><h3 class="text-2xl font-bold">${winner.name}</h3>`;
+                winnerContainer.classList.remove('hidden');
+
+                const sortedScorers = Object.entries(tournament.goalscorers).sort(([,a],[,b]) => b-a);
+                if (sortedScorers.length > 0) {
+                    goldenBootWinnerEl.innerHTML = `<h4 class="font-bold text-lg text-yellow-300">Golden Boot</h4><p>${sortedScorers[0][0]} (${sortedScorers[0][1]} goals)</p>`;
+                    goldenBootWinnerEl.classList.remove('hidden');
+
+                    fullGoalscorerListEl.innerHTML = `<h4 class="font-bold text-lg text-yellow-300 mb-2">Top Scorers</h4>` + sortedScorers.map(([name, goals]) => `<div class="text-sm">${name}: ${goals}</div>`).join('');
+                    fullGoalscorerListEl.classList.remove('hidden');
+                }
+
+                if (tournament.stats.biggestUpset) {
+                    const { winner, loser, team1Score, team2Score } = tournament.stats.biggestUpset;
+                    biggestUpsetEl.innerHTML = `<h4 class="font-bold text-lg text-yellow-300">Biggest Upset</h4><p>${winner.name} (${winner.rank}) ${team1Score > team2Score ? team1Score : team2Score} - ${team1Score < team2Score ? team1Score : team2Score} ${loser.name} (${loser.rank})</p>`;
+                    biggestUpsetEl.classList.remove('hidden');
+                }
+            }
+
+            function renderBracket(reset=false) {
+                if(reset){bracketContainer.innerHTML='';thirdPlaceContainer.innerHTML='';return}
+                
+                const stages = [];
+                if (tournament.ro16) stages.push({name:'ro16',title:'Round of 16',count:8});
+                if (tournament.qf) stages.push({name:'qf',title:'Quarter-finals',count:4});
+                if (tournament.sf) stages.push({name:'sf',title:'Semi-finals',count:2});
+                if (tournament.final) stages.push({name:'final',title:'Final',count:1});
+
+                if(stages.length === 0) return;
+                bracketContainer.innerHTML = '';
+
+                stages.forEach((stageInfo) => {
+                    const stageCol = document.createElement('div');
+                    stageCol.className = 'flex flex-col justify-around space-y-4';
+                    stageCol.innerHTML = `
+                        <h4 class="text-center font-bold h-6">${stageInfo.title}</h4>
+                        ${Array.from({length: stageInfo.count}).map((_, i) => {
+                            const match = tournament[stageInfo.name]?.[i];
+                            const getTeamClass = (t, w) => (w && t && w.name === t.name) ? 'font-bold text-green-300' : 'text-gray-300';
+                            return `<div class="bg-gray-700 rounded-lg p-2 text-sm shadow-inner w-56 match-item">
+                                        <div class="flex justify-between items-center ${match?.team1 ? getTeamClass(match.team1, match.result?.winner) : ''}"><span title="${match?.team1?.name || ''}">${(match?.team1?.name || 'TBD').substring(0,15)}</span><span class="font-semibold">${match?.result ? match.result.team1Score : ''}</span></div>
+                                        <div class="flex justify-between items-center ${match?.team2 ? getTeamClass(match.team2, match.result?.winner) : ''}"><span title="${match?.team2?.name || ''}">${(match?.team2?.name || 'TBD').substring(0,15)}</span><span class="font-semibold">${match?.result ? match.result.team2Score : ''}</span></div>
+                                    </div>`
+                        }).join('')}
+                    `;
+                    bracketContainer.appendChild(stageCol);
+                });
+
+                if(tournament.thirdPlace){const m=tournament.thirdPlace[0];const gtc=(t,w)=>(w && t && w.name === t.name)?'font-bold text-green-300':'text-gray-300';thirdPlaceContainer.classList.remove('hidden');thirdPlaceContainer.innerHTML=`<h4 class="text-center font-bold mb-4">Third Place Playoff</h4><div class="bg-gray-800 rounded-lg p-3 my-2 text-base max-w-sm mx-auto"><div class="flex justify-between items-center ${m?.team1?gtc(m.team1,m.result?.winner):''}"><span title="${m?.team1?.name||''}">${m?.team1?.name||'TBD'}</span><span class="font-semibold">${m?.result?m.result.team1Score:''}</span></div><div class="flex justify-between items-center ${m?.team2?gtc(m.team2,m.result?.winner):''}"><span title="${m?.team2?.name||''}">${m?.team2?.name||'TBD'}</span><span class="font-semibold">${m?.result?m.result.team2Score:''}</span></div></div>`}
+            }
+
+            // --- Event Listeners ---
+            showSingleMatchBtn.addEventListener('click', () => {
+                populateSelects();
+                showView('single-match-view');
+                squadDisplayContainer.classList.add('hidden');
+            });
+
+            startWorldCupBtn.addEventListener('click', () => {
+                const wcTeams = [...teams.slice(0, 32)];
+                setupTournament(wcTeams);
+            });
+
+            showCustomTournamentBtn.addEventListener('click', () => {
+                customTeamList.innerHTML = teams.map(t => `<div><input type="checkbox" id="team-${t.rank}" name="custom-team" value="${t.name}" class="mr-2"><label for="team-${t.rank}" class="text-sm">(${t.rank}) ${t.name}</label></div>`).join('');
+                showView('custom-tournament-view');
+            });
+            
+            tournamentSizeRadios.forEach(radio => radio.addEventListener('change', (e) => {
+                requiredTeamsCountEl.textContent = e.target.value;
+            }));
+
+            startCustomTournamentBtn.addEventListener('click', () => {
+                const selectedSize = document.querySelector('input[name="tournament-size"]:checked').value;
+                const selectedCheckboxes = document.querySelectorAll('input[name="custom-team"]:checked');
+                customErrorMessage.textContent = '';
+
+                if (selectedCheckboxes.length != selectedSize) {
+                    customErrorMessage.textContent = `Please select exactly ${selectedSize} teams. You have selected ${selectedCheckboxes.length}.`;
+                    return;
+                }
+                const selectedTeams = Array.from(selectedCheckboxes).map(cb => getTeamByName(cb.value));
+                setupTournament(selectedTeams);
+            });
+
+            backToMenuBtns.forEach(btn => btn.addEventListener('click', () => {
+                showView('mode-select-view');
+                if (matchSimContainer) {
+                    matchSimContainer.classList.add('hidden');
+                }
+            }));
+            simulateBtn.addEventListener('click', runSingleMatchSimulation);
+            team1Select.addEventListener('change', displaySquads);
+            team2Select.addEventListener('change', displaySquads);
+            simNextStageBtn.addEventListener('click', () => simulateNextStage());
+            
+            // --- Initializer ---
+            showView('mode-select-view');
+        });
+    </script>
+</body>
+</html>
