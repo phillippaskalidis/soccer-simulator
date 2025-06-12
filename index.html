@@ -26,6 +26,9 @@
             max-height: 400px;
             overflow-y: auto;
         }
+        #full-goalscorer-list {
+            max-height: 200px;
+        }
         /* Custom scrollbar styles */
         #custom-team-list::-webkit-scrollbar,
         #match-timeline::-webkit-scrollbar,
@@ -137,10 +140,13 @@
                 <div id="world-cup-winner" class="text-center my-6 hidden">
                     <h2 class="text-3xl font-bold text-yellow-400">TOURNAMENT CHAMPION</h2>
                     <div id="winner-display" class="mt-4 p-4 bg-gray-800 rounded-lg inline-flex flex-col items-center shadow-lg"></div>
-                    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                     <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
                         <div id="golden-boot-winner" class="p-4 bg-gray-800 rounded-lg shadow-lg"></div>
                         <div id="biggest-upset" class="p-4 bg-gray-800 rounded-lg shadow-lg"></div>
-                        <div id="full-goalscorer-list" class="p-4 bg-gray-800 rounded-lg shadow-lg"></div>
+                        <div class="p-4 bg-gray-800 rounded-lg shadow-lg">
+                           <h4 class="font-bold text-lg text-yellow-300 mb-2">Top Scorers</h4>
+                           <div id="full-goalscorer-list"></div>
+                        </div>
                     </div>
                 </div>
                 <h2 id="group-stage-title" class="text-2xl font-bold text-center mb-4">Group Stage</h2>
@@ -274,8 +280,11 @@
                     goalConversionModifier = 1 + Math.log(rankRatio);
                 }
                 
-                const team1GoalConversion = 0.25 * goalConversionModifier;
-                const team2GoalConversion = 0.25 / goalConversionModifier;
+                const strongerTeam = (team1.rank < team2.rank) ? team1 : team2;
+                const weakerTeam = (team1.rank < team2.rank) ? team2 : team1;
+
+                const strongerGoalConversion = 0.25 * goalConversionModifier;
+                const weakerGoalConversion = 0.25 / goalConversionModifier;
 
                 const stats = {
                     [team1.name]: { shots: 0, shotsOnTarget: 0, goals: 0, corners: 0, fouls: 0, offsides: 0, yellowCards: 0, redCards: 0, possession: 0 },
@@ -293,7 +302,7 @@
                         stats[attackingTeam.name].shots++;
                         if(Math.random() < onTargetChance) {
                             stats[attackingTeam.name].shotsOnTarget++;
-                            const goalChance = (attackingTeam.name === team1.name) ? team1GoalConversion : team2GoalConversion;
+                            const goalChance = (attackingTeam.name === strongerTeam.name) ? strongerGoalConversion : weakerGoalConversion;
                             if (Math.random() < goalChance) {
                                 let scorer = 'Unknown';
                                 if (attackingTeam.squad) {
@@ -456,7 +465,7 @@
                 winnerContainer.classList.add('hidden');
                 goldenBootWinnerEl.classList.add('hidden');
                 biggestUpsetEl.classList.add('hidden');
-                fullGoalscorerListEl.classList.add('hidden');
+                fullGoalscorerListEl.parentElement.classList.add('hidden');
                 knockoutStageContainer.classList.add('hidden');
                 thirdPlaceContainer.classList.add('hidden');
                 showView('tournament-view');
@@ -599,8 +608,8 @@
                     goldenBootWinnerEl.innerHTML = `<h4 class="font-bold text-lg text-yellow-300">Golden Boot</h4><p>${sortedScorers[0][0]} (${sortedScorers[0][1]} goals)</p>`;
                     goldenBootWinnerEl.classList.remove('hidden');
 
-                    fullGoalscorerListEl.innerHTML = `<h4 class="font-bold text-lg text-yellow-300 mb-2">Top Scorers</h4>` + sortedScorers.map(([name, goals]) => `<div class="text-sm">${name}: ${goals}</div>`).join('');
-                    fullGoalscorerListEl.classList.remove('hidden');
+                    fullGoalscorerListEl.parentElement.classList.remove('hidden');
+                    fullGoalscorerListEl.innerHTML = sortedScorers.map(([name, goals]) => `<div class="text-sm">${name}: ${goals}</div>`).join('');
                 }
 
                 if (tournament.stats.biggestUpset) {
